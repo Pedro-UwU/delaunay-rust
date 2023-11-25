@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use crate::point::Point;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Triangle {
     // Uses indices to refer to points
     pub p1: usize,
@@ -31,7 +32,7 @@ impl Triangle {
     /// - p1 will be the point with the greatest y value. If two points have the same y value, the one with the greatest x value will be chosen
     /// - p2 will be the one with the greatest x value among the other two
     /// - p3 will be the one with the smallest x value among the other two
-    pub fn new_unsorted(p1: usize, p2: usize, p3: usize, points: &Vec<Rc<Point>>) -> Self {
+    pub fn new_unsorted(p1: usize, p2: usize, p3: usize, points: &Vec<Point>) -> Self {
         let sorted = Triangle::get_sorted(p1, p2, p3, points);
         Triangle::new(sorted.0, sorted.1, sorted.2)
     }
@@ -56,7 +57,7 @@ impl Triangle {
         Point::new(u_x, u_y)
     }
 
-    pub fn is_point_inside_or_in_border(&self, point: &Point, points: &Vec<Rc<Point>>) -> bool {
+    pub fn is_point_inside_or_in_border(&self, point: &Point, points: &Vec<Point>) -> bool {
         let p1 = &points[self.p1];
         let p2 = &points[self.p2];
         let p3 = &points[self.p3];
@@ -72,7 +73,7 @@ impl Triangle {
         d1 >= 0.0 && d2 >= 0.0 && d3 >= 0.0
     }
 
-    fn get_sorted(p1: usize, p2: usize, p3: usize, points: &Vec<Rc<Point>>) -> (usize, usize, usize) {
+    fn get_sorted(p1: usize, p2: usize, p3: usize, points: &Vec<Point>) -> (usize, usize, usize) {
         let mut vec = vec![p1, p2, p3];
         vec.sort_by(|a, b| {
             let a_point = &points[*a];
@@ -85,8 +86,8 @@ impl Triangle {
         vec2.sort_by(|a, b| {
             let a_point = &points[*a];
             let b_point = &points[*b];
-            // Sort by x value
-            b_point.x.partial_cmp(&a_point.x).unwrap()
+            // Sort by x value, if x values are equal, sort by y value
+            b_point.x.partial_cmp(&a_point.x).unwrap().then(b_point.y.partial_cmp(&a_point.y).unwrap())
         });
 
         (top, vec2[0], vec2[1])

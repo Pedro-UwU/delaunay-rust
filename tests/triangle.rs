@@ -30,10 +30,10 @@ fn test_circumcenter() {
 
 #[test]
 fn test_sorted_points() {
-    let mut points: Vec<Rc<Point>> = Vec::new();
-    points.push(Rc::new(Point::new(0.0, 0.0)));
-    points.push(Rc::new(Point::new(10.0, 10.0)));
-    points.push(Rc::new(Point::new(20.0, 0.0)));
+    let mut points: Vec<Point> = Vec::new();
+    points.push(Point::new(0.0, 0.0));
+    points.push(Point::new(10.0, 10.0));
+    points.push(Point::new(20.0, 0.0));
     let t1 = Triangle::new_unsorted(0, 1, 2, &points);
     let t2 = Triangle::new_unsorted(0, 2, 1, &points);
     let t3 = Triangle::new_unsorted(1, 0, 2, &points);
@@ -49,7 +49,7 @@ fn test_sorted_points() {
     assert_eq!(t3.p3, 0);
 
     // now add a point with negative y
-    points.push(Rc::new(Point::new(100.0, -10.0)));
+    points.push(Point::new(100.0, -10.0));
     let t4 = Triangle::new_unsorted(0, 2, 3, &points);
     assert_eq!(t4.p1, 2);
     assert_eq!(t4.p2, 3);
@@ -59,10 +59,10 @@ fn test_sorted_points() {
 
 #[test]
 fn test_point_inside() {
-    let mut points: Vec<Rc<Point>> = Vec::new();
-    points.push(Rc::new(Point::new(0.0, 0.0)));
-    points.push(Rc::new(Point::new(10.0, 10.0)));
-    points.push(Rc::new(Point::new(20.0, 0.0)));
+    let mut points: Vec<Point> = Vec::new();
+    points.push(Point::new(0.0, 0.0));
+    points.push(Point::new(10.0, 10.0));
+    points.push(Point::new(20.0, 0.0));
 
     let tri = Triangle::new_unsorted(0, 1, 2, &points);
     let p1 = Point::new(5.0, 5.0);
