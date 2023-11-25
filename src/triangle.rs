@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::cell::RefCell;
 use crate::point::Point;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -8,9 +9,9 @@ pub struct Triangle {
     pub p2: usize,
     pub p3: usize,
 
-    pub n12: Option<Rc<Triangle>>,
-    pub n23: Option<Rc<Triangle>>,
-    pub n31: Option<Rc<Triangle>>,
+    pub n12: Option<Rc<RefCell<Triangle>>>,
+    pub n23: Option<Rc<RefCell<Triangle>>>,
+    pub n31: Option<Rc<RefCell<Triangle>>>,
 }
 
 impl Triangle {
@@ -71,6 +72,12 @@ impl Triangle {
         }
 
         d1 >= 0.0 && d2 >= 0.0 && d3 >= 0.0
+    }
+
+    pub fn set_neighbors(&mut self, n12: Option<Rc<RefCell<Triangle>>>, n23: Option<Rc<RefCell<Triangle>>>, n31: Option<Rc<RefCell<Triangle>>>) {
+        self.n12 = n12;
+        self.n23 = n23;
+        self.n31 = n31;
     }
 
     fn get_sorted(p1: usize, p2: usize, p3: usize, points: &Vec<Point>) -> (usize, usize, usize) {

@@ -1,9 +1,12 @@
 use std::usize;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::{point::Point, triangle::Triangle};
 
 pub struct Triangulation {
     pub points: Vec<Point>,
-    pub triangles: Vec<Triangle>,
+    pub triangles: Vec<Rc<RefCell<Triangle>>>,
+// Use RefCell
 }
 
 impl Triangulation {
@@ -25,8 +28,8 @@ impl Triangulation {
            if triangle.is_none() {
                panic!("Point not found in any triangle");
            }
-           let triangle = triangle.unwrap().clone(); // Clonning because of mutability on self
-           self.insert_point_in_triangle(i, &triangle);
+           let triangle_index = triangle.unwrap();
+           self.insert_point_in_triangle(i, triangle_index);
         }
         
     }
@@ -43,11 +46,12 @@ impl Triangulation {
         let p3 = self.points.len() - 1;
 
         let triangle = Triangle::new_unsorted(p1, p2, p3, &self.points);
-        self.triangles.push(triangle);
+        self.triangles.push(Rc::new(RefCell::new(triangle)));
+
     }
 
     fn sort_points_by_bins(&mut self) {
-        let total_bins_side = (self.points.len() as f64).sqrt() as usize;  
+        let total_bins_side = (self.points.len() as f64).sqrt().ceil() as usize;  
         self.points.sort_by(|a, b| {
             let mut a_x = (a.x / total_bins_side as f64).floor() as usize;
             let mut b_x = (b.x / total_bins_side as f64).floor() as usize;
@@ -68,10 +72,10 @@ impl Triangulation {
         });
     }
 
-    fn get_triangle_containing_point(&self, point: &Point) -> Option<&Triangle> {
-        for tri in &self.triangles {
-            if tri.is_point_inside_or_in_border(point, &self.points) {
-                return Some(tri);
+    fn get_triangle_containing_point(&self, point: &Point) -> Option<usize> {
+        for (i, tri) in self.triangles.iter().enumerate() {
+            if tri.borrow().is_point_inside_or_in_border(point, &self.points) {
+                return Some(i);
             }
         }
         None
@@ -80,17 +84,26 @@ impl Triangulation {
 
     /// Insert a point in a triangle, creating 3 new triangles and removing the old one
     /// It is assumed that the point is inside the triangle
-    fn insert_point_in_triangle(&mut self, point: usize, triangle: &Triangle) {
+    fn insert_point_in_triangle(&mut self, point: usize, triangle_index: usize) {
+        let triangle = self.triangles[triangle_index].borrow_mut().clone();
         let p1 = triangle.p1;
         let p2 = triangle.p2;
         let p3 = triangle.p3;
         let t1 = Triangle::new_unsorted(p1, p2, point, &self.points);
         let t2 = Triangle::new_unsorted(p2, p3, point, &self.points);
         let t3 = Triangle::new_unsorted(p3, p1, point, &self.points);
-        self.triangles.retain(|t| t != triangle);
-        self.triangles.push(t1);
-        self.triangles.push(t2);
-        self.triangles.push(t3);
+        let triangle_index = self.triangles.iter().position(|x| x.borrow().p1 == triangle.p1).unwrap();
+        self.triangles.remove(triangle_index);
+        
+        let t1 = Rc::new(RefCell::new(t1));
+        let t2 = Rc::new(RefCell::new(t2));
+        let t3 = Rc::new(RefCell::new(t3));
+
+        // TODO - Manage the neighbours
+
+        self.triangles.push(Rc::clone(&t1));
+        self.triangles.push(Rc::clone(&t2));
+        self.triangles.push(Rc::clone(&t3));
     }
 }
 
@@ -107,21 +120,48 @@ mod test {
         // p[1] = (-1000000, 1000000)
         // p[2] = (1000000, 1000000)
         // p[3] = (0, -1000000)
-        let super_triangle = triangulation.triangles.first().unwrap().clone();
-        triangulation.insert_point_in_triangle(0, &super_triangle); 
+        triangulation.insert_point_in_triangle(0, 0); 
 
         assert_eq!(triangulation.triangles.len(), 3);
 
-        assert_eq!(triangulation.triangles[0].p1, 2); // (1000000, 1000000)
-        assert_eq!(triangulation.triangles[0].p2, 0); // (0, 0)
-        assert_eq!(triangulation.triangles[0].p3, 3); // (0, -1000000)
+        assert_eq!(triangulation.triangles[0].borrow().p1, 2); // (1000000, 1000000)
+        assert_eq!(triangulation.triangles[0].borrow().p2, 0); // (0, 0)
+        assert_eq!(triangulation.triangles[0].borrow().p3, 3); // (0, -1000000)
 
-        assert_eq!(triangulation.triangles[1].p1, 1); // (-1000000, 1000000)
-        assert_eq!(triangulation.triangles[1].p2, 0); // (0, 0)
-        assert_eq!(triangulation.triangles[1].p3, 3); // (0, -1000000)
+        assert_eq!(triangulation.triangles[1].borrow().p1, 1); // (-1000000, 1000000)
+        assert_eq!(triangulation.triangles[1].borrow().p2, 0); // (0, 0)
+        assert_eq!(triangulation.triangles[1].borrow().p3, 3); // (0, -1000000)
 
-        assert_eq!(triangulation.triangles[2].p1, 2); // (1000000, 1000000)
-        assert_eq!(triangulation.triangles[2].p2, 0); // (0, 0)
-        assert_eq!(triangulation.triangles[2].p3, 1); // (-1000000, 1000000)
+        assert_eq!(triangulation.triangles[2].borrow().p1, 2); // (1000000, 1000000)
+        assert_eq!(triangulation.triangles[2].borrow().p2, 0); // (0, 0)
+        assert_eq!(triangulation.triangles[2].borrow().p3, 1); // (-1000000, 1000000)
+    }
+
+    #[test]
+    fn test_point_insertion_neightbors() {
+        let mut points: Vec<Point> = Vec::new();
+        points.push(Point::new(0.0, 0.0));
+        let mut triangulation  = Triangulation::new(points);
+        triangulation.create_giant_super_triangle();
+        // p[0] = (0, 0)
+        // p[1] = (-1000000, 1000000)
+        // p[2] = (1000000, 1000000)
+        // p[3] = (0, -1000000)
+        triangulation.insert_point_in_triangle(0, 0); 
+        // t[0] = (2, 0, 3)
+        // t[1] = (1, 0, 3)
+        // t[2] = (2, 0, 1)
+
+        // t[0].12 = t[2]
+        // t[0].23 = t[1]
+        // t[0].31 = None
+        
+        // t[1].12 = t[2]
+        // t[1].23 = t[0]
+        // t[1].31 = None
+        
+        // t[2].12 = t[0]
+        // t[2].23 = t[1]
+        // t[2].31 = None
     }
 }
